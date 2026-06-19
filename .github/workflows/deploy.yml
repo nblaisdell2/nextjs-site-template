@@ -1,0 +1,61 @@
+name: Build and Deploy
+
+# Build the image, push to ECR, and roll out the ECS Express service via a
+# targeted Terraform apply. Auth to AWS uses GitHub OIDC (no stored keys).
+
+on:
+  push:
+    branches: ["main"]
+
+# Required for OIDC.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPO: nextjs-test # = project_name
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$REGISTRY/$ECR_REPO:$IMAGE_TAG" \
+            -t "$REGISTRY/$ECR_REPO:latest" .
+          docker push "$REGISTRY/$ECR_REPO:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_REPO:latest"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: Deploy (targeted apply on the ECS service)
+        working-directory: infra
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform apply -auto-approve \
+            -target=aws_ecs_express_gateway_service.app \
+            -var-file=ci.tfvars \
+            -var="image_tag=${{ github.sha }}"

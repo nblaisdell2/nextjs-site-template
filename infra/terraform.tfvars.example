@@ -1,0 +1,28 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+aws_region   = "us-east-1"
+project_name = "nextjs-test"
+
+# For local migrations, allow your IP to reach RDS. Find it with:
+#   curl -s https://checkip.amazonaws.com
+my_ip_cidr = "YOUR.IP.ADDR.HERE/32"
+
+# Leave false for the first apply. Flip to true after you've pushed an image
+# and run migrations, then apply again to launch the service.
+deploy_service = false
+
+# Image tag the service runs (the deploy script/CI pass a real tag).
+image_tag = "latest"
+
+# --- Database snapshot lifecycle ---
+# Leave false for the first create. Set true to restore from the latest snapshot
+# (e.g. after destroying the DB to save cost).
+use_latest_snapshot = false
+
+# --- CI/CD (GitHub Actions OIDC) ---
+# Repo allowed to deploy, and the state bucket from bootstrap-backend.ps1.
+github_repo  = "OWNER/nextjs-test"
+state_bucket = "REPLACE_WITH_YOUR_STATE_BUCKET"
+# An account can only have ONE GitHub OIDC provider. Set false if one already
+# exists (e.g. from the previous App Runner project).
+create_oidc_provider = true
