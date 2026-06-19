@@ -8,13 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "migrate": "node --env-file-if-exists=.env db/migrate.mjs",
+    "db:ensure": "node --env-file-if-exists=.env db/ensure-database.mjs",
+    "setup": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/setup-local.ps1",
     "template:init": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/init-from-template.ps1",
     "aws:setup": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/setup-aws.ps1",
     "aws:bootstrap": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/bootstrap-backend.ps1",
     "aws:deploy": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-and-push.ps1",
     "aws:migrate": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-migrations.ps1",
     "aws:secrets": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/set-deploy-secrets.ps1",
-    "aws:destroy": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/destroy-all.ps1"
+    "aws:destroy": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/destroy-all.ps1 -DeleteSnapshots -DeleteStateBucket"
   },
   "dependencies": {
     "next": "15.3.1",

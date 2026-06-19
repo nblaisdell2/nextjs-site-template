@@ -37,6 +37,7 @@ versions via `pwsh` (so they work on any OS that has PowerShell 7 installed).
 
 | Script | npm | Purpose |
 |--------|-----|---------|
+| `setup-local` | `npm run setup` | One-shot local onboarding: install, `.env`, migrate, personalize, set your IP |
 | `init-from-template` | `npm run template:init` | One-time: personalize a fresh copy (name, region, repo) |
 | `setup-aws` | `npm run aws:setup` | Run the **entire** first-time AWS setup end to end |
 | `bootstrap-backend` | `npm run aws:bootstrap` | Create the S3 state bucket |
