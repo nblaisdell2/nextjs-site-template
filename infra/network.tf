@@ -28,9 +28,9 @@ resource "aws_security_group" "ecs_tasks" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  lifecycle {
-    create_before_destroy = true
-  }
+  # Intentionally NO create_before_destroy: with it, a targeted CI apply on the
+  # ECS service would cascade into dependent SGs (e.g. rds) and try to modify
+  # them. name_prefix already avoids name collisions on replacement.
 }
 
 # Security group for RDS: allow Postgres from the ECS tasks, and optionally from
@@ -65,10 +65,7 @@ resource "aws_security_group" "rds" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  lifecycle {
-    create_before_destroy = true
-  }
+  # No create_before_destroy — see the note on the ecs_tasks security group.
 }
 
 resource "aws_db_subnet_group" "main" {

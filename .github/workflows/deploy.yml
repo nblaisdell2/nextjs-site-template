@@ -53,9 +53,14 @@ jobs:
 
       - name: Deploy (targeted apply on the ECS service)
         working-directory: infra
+        # -refresh=false: don't read/refresh other resources from AWS. This keeps
+        # the CI role's permissions minimal (no tag/policy/describe reads) and
+        # guarantees CI only updates the ECS service image — it never touches the
+        # RDS security group, networking, etc. (which would otherwise drift because
+        # ci.tfvars has no my_ip_cidr).
         run: |
           terraform init -backend-config=backend.hcl
-          terraform apply -auto-approve \
+          terraform apply -auto-approve -refresh=false \
             -target=aws_ecs_express_gateway_service.app \
             -var-file=ci.tfvars \
             -var="image_tag=${{ github.sha }}"

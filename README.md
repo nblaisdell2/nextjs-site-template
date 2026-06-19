@@ -171,8 +171,9 @@ cd ..
 ## How deploys work
 
 - **CI (push to main)** builds the image, pushes it to ECR, and runs a *targeted*
-  `terraform apply` on just the ECS service to roll out the new image (zero-downtime
-  canary). The CI role is scoped to that — it can't change RDS or networking.
+  `terraform apply -refresh=false` on just the ECS service to roll out the new image
+  (zero-downtime canary). `-refresh=false` means CI reads/changes nothing else — so
+  the role stays minimal and it can never touch RDS or networking.
 - **Infra changes** (RDS, networking, IAM) are applied from your laptop with your
   full credentials: edit `infra/*.tf`, then `terraform apply`.
 - **Manual image deploy** (no push): `npm run aws:deploy` (build + push) then
