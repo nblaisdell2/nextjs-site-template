@@ -15,6 +15,7 @@ DATABASE_URL="$(terraform -chdir="$INFRA_DIR" output -raw database_url)"
 
 echo "==> Applying migrations"
 cd "$PROJECT_ROOT"
-DATABASE_URL="$DATABASE_URL" npm run migrate
+# Force TLS on for RDS, overriding any DATABASE_SSL=disable from a local .env.
+DATABASE_URL="$DATABASE_URL" DATABASE_SSL=require npm run migrate
 
 echo "Done."

@@ -66,8 +66,7 @@ else
 aws_region   = "$REGION"
 project_name = "$PROJECT_NAME"
 
-# Fill after running scripts/bootstrap-backend:
-state_bucket = "REPLACE_AFTER_BOOTSTRAP"
+# State bucket is derived as "$PROJECT_NAME-tfstate" automatically.
 
 # For local migrations (curl https://checkip.amazonaws.com -> "<ip>/32"):
 my_ip_cidr = "REPLACE_WITH_YOUR_IP/32"

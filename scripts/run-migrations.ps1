@@ -17,11 +17,14 @@ Write-Host "==> Applying migrations"
 Push-Location $ProjectRoot
 try {
     $env:DATABASE_URL = $DatabaseUrl
+    # Force TLS on for RDS, overriding any DATABASE_SSL=disable from a local .env.
+    $env:DATABASE_SSL = "require"
     npm run migrate
     if ($LASTEXITCODE -ne 0) { throw "migrations failed" }
 }
 finally {
     Remove-Item Env:\DATABASE_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:\DATABASE_SSL -ErrorAction SilentlyContinue
     Pop-Location
 }
 

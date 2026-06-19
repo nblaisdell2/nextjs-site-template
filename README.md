@@ -32,20 +32,27 @@ Browser ──HTTPS──> ECS Express (ALB + Fargate task, image from ECR)
 ### Scripts
 
 Every script ships in both PowerShell (`.ps1`, Windows) and Bash (`.sh`, Linux/macOS).
+The common ones are also exposed as **npm scripts**, which call the PowerShell
+versions via `pwsh` (so they work on any OS that has PowerShell 7 installed).
 
-| Script | Purpose |
-|--------|---------|
-| `init-from-template` | One-time: personalize a fresh copy (name, region, repo) |
-| `bootstrap-backend` | Create the S3 state bucket (run once, before `terraform init`) |
-| `build-and-push` | Build the image and push to ECR (for manual deploys) |
-| `run-migrations` | Apply DB migrations against RDS |
-| `set-deploy-secrets` | Push the CI role ARN + region to GitHub repo secrets |
-| `destroy-all` | Tear down everything (`--delete-snapshots`, `--delete-state-bucket`, `--yes`) |
+| Script | npm | Purpose |
+|--------|-----|---------|
+| `init-from-template` | `npm run template:init` | One-time: personalize a fresh copy (name, region, repo) |
+| `setup-aws` | `npm run aws:setup` | Run the **entire** first-time AWS setup end to end |
+| `bootstrap-backend` | `npm run aws:bootstrap` | Create the S3 state bucket |
+| `build-and-push` | `npm run aws:deploy` | Build the image and push to ECR |
+| `run-migrations` | `npm run aws:migrate` | Apply DB migrations against RDS |
+| `set-deploy-secrets` | `npm run aws:secrets` | Push the CI role ARN + region to GitHub secrets |
+| `destroy-all` | `npm run aws:destroy` | Tear down everything (`--delete-snapshots`, `--delete-state-bucket`, `--yes`) |
+
+Pass arguments after `--`, e.g. `npm run template:init -- -ProjectName my-app -GitHubRepo me/my-app`.
+On Linux/macOS without PowerShell 7, call the `.sh` versions directly.
 
 ## Prerequisites
 
 - Node.js 20+, Docker, AWS CLI (authenticated), GitHub CLI (`gh auth login`)
 - Terraform ≥ 1.10 (needed for S3-native state locking and the ECS Express resource)
+- PowerShell 7 (`pwsh`) if you want to use the npm script aliases (optional)
 
 ---
 
@@ -65,40 +72,55 @@ Locally there's no RDS CA bundle, so `lib/db.ts` connects without TLS (`DATABASE
 
 ## First-time AWS setup
 
+First make sure `infra/terraform.tfvars` exists and is filled in. `init-from-template`
+creates it; otherwise `cp infra/terraform.tfvars.example infra/terraform.tfvars` and set:
+
+- `my_ip_cidr` — your IP for migrations (`curl https://checkip.amazonaws.com` → `"<ip>/32"`)
+- `github_repo` — `"<owner>/<repo>"`
+- `create_oidc_provider` — `true`, or `false` if the account already has a GitHub OIDC provider
+
+The state bucket name is derived as `<project_name>-tfstate` automatically — you don't set it.
+
+Then run the **entire** setup in one command (bucket → init → apply → build → migrate →
+launch → secrets, all with `-auto-approve`):
+
 ```powershell
-# 1. Create the remote-state bucket and write infra/backend.hcl
-.\scripts\bootstrap-backend.ps1 -BucketName <you>-nextjs-test-tfstate
-
-# 2. Configure variables
-cd infra
-cp terraform.tfvars.example terraform.tfvars
-#   set: my_ip_cidr (curl https://checkip.amazonaws.com -> "<ip>/32"),
-#        github_repo = "<owner>/nextjs-test",
-#        state_bucket = "<the bucket name from step 1>",
-#        create_oidc_provider = true  (false if you already have a GitHub OIDC provider)
-
-# 3. Init against the S3 backend, then create base infra (no service yet)
-terraform init -backend-config=backend.hcl
-terraform apply        # deploy_service defaults to false
-
-# 4. Build + push the first image, run migrations
-cd ..
-.\scripts\build-and-push.ps1
-.\scripts\run-migrations.ps1
-
-# 5. Launch the service
-cd infra
-#   set deploy_service = true in terraform.tfvars
-terraform apply -var="image_tag=<tag the build printed>"
-terraform output ingress_paths     # the *.on.aws URL
-
-# 6. Wire up CI/CD secrets, then push
-cd ..
-.\scripts\set-deploy-secrets.ps1
-git add . ; git commit -m "init" ; git push -u origin main
+npm run aws:setup
+```
+```bash
+npm run aws:setup        # or, without pwsh:  ./scripts/setup-aws.sh
 ```
 
-After step 6, every push to `main` builds, pushes, and rolls out automatically.
+When it finishes it prints the service URL. Then commit and push:
+
+```bash
+git add . && git commit -m "init" && git push -u origin main
+```
+
+After that first push, every push to `main` builds, pushes, and rolls out automatically.
+
+<details>
+<summary>What <code>aws:setup</code> runs (do it manually if you prefer)</summary>
+
+```powershell
+.\scripts\bootstrap-backend.ps1                          # 1. create state bucket
+cd infra
+terraform init "-backend-config=backend.hcl"             # 2. init  (quote the flag — see note)
+terraform apply -auto-approve                            # 3. base infra (deploy_service=false)
+cd ..
+.\scripts\build-and-push.ps1 -ImageTag <tag>             # 4. build + push image
+.\scripts\run-migrations.ps1                             # 5. migrations
+# set deploy_service = true in infra\terraform.tfvars
+cd infra
+terraform apply -auto-approve -var="image_tag=<tag>"     # 6. launch ECS service
+cd ..
+.\scripts\set-deploy-secrets.ps1                         # 7. GitHub deploy secrets
+```
+</details>
+
+> **PowerShell gotcha:** always **quote the backend flag** —
+> `terraform init "-backend-config=backend.hcl"`. Unquoted, PowerShell mis-splits it and
+> Terraform fails with *"Too many command line arguments."*
 
 > **Already have the App Runner-era OIDC provider?** Set `create_oidc_provider = false`
 > and Terraform references the existing one instead of failing on a duplicate.
@@ -112,7 +134,7 @@ After step 6, every push to `main` builds, pushes, and rolls out automatically.
   canary). The CI role is scoped to that — it can't change RDS or networking.
 - **Infra changes** (RDS, networking, IAM) are applied from your laptop with your
   full credentials: edit `infra/*.tf`, then `terraform apply`.
-- **Manual image deploy** (no push): `./scripts/build-and-push.ps1` then
+- **Manual image deploy** (no push): `npm run aws:deploy` (build + push) then
   `terraform apply -var="image_tag=<tag>"`.
 
 Because state lives in S3, your laptop and CI share one source of truth — no drift.
@@ -154,7 +176,8 @@ For a new project:
    ./scripts/init-from-template.sh --name my-app --repo owner/my-app --region us-east-1
    ```
    Add `-CreateOidcProvider` / `--create-oidc` only if the account has no GitHub OIDC provider yet.
-3. Review `git diff`, then run the **First-time AWS setup** steps above.
+3. Review `git diff`, fill in `infra/terraform.tfvars` (`my_ip_cidr`), then run
+   `npm run aws:setup` (the **First-time AWS setup** above).
 
 Terraform provisions all the AWS resources, so there's no big generator script to
 maintain — "use template + `terraform apply`" replaces it.

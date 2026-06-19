@@ -60,8 +60,7 @@ if (Test-Path $tfvars) {
 aws_region   = "$Region"
 project_name = "$ProjectName"
 
-# Fill after running scripts/bootstrap-backend:
-state_bucket = "REPLACE_AFTER_BOOTSTRAP"
+# State bucket is derived as "$ProjectName-tfstate" automatically.
 
 # For local migrations (curl https://checkip.amazonaws.com -> "<ip>/32"):
 my_ip_cidr = "REPLACE_WITH_YOUR_IP/32"

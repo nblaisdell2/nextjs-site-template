@@ -20,9 +20,9 @@ image_tag = "latest"
 use_latest_snapshot = false
 
 # --- CI/CD (GitHub Actions OIDC) ---
-# Repo allowed to deploy, and the state bucket from bootstrap-backend.ps1.
-github_repo  = "OWNER/nextjs-test"
-state_bucket = "REPLACE_WITH_YOUR_STATE_BUCKET"
+# Repo allowed to deploy. The state bucket is derived as "<project_name>-tfstate"
+# automatically; only set state_bucket here to override that.
+github_repo = "OWNER/nextjs-test"
 # An account can only have ONE GitHub OIDC provider. Set false if one already
 # exists (e.g. from the previous App Runner project).
 create_oidc_provider = true

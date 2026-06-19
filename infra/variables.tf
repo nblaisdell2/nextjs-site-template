@@ -138,8 +138,9 @@ variable "create_oidc_provider" {
 
 variable "state_bucket" {
   description = <<-EOT
-    Name of the S3 bucket holding Terraform state (from backend.hcl). The CI
-    deploy role is granted read/write on it. Required when github_repo is set.
+    Optional override for the S3 Terraform state bucket. Leave empty to use the
+    convention "<project_name>-tfstate" (which backend.hcl and bootstrap-backend
+    also use). The CI deploy role is granted read/write on it.
   EOT
   type    = string
   default = ""

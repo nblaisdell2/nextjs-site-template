@@ -1,32 +1,53 @@
-# Create the S3 bucket that holds Terraform remote state, then write
-# infra/backend.hcl. Run ONCE per project, before `terraform init`.
+# Create the S3 bucket that holds Terraform remote state. Run ONCE per project,
+# before `terraform init`.
 #
-#   .\scripts\bootstrap-backend.ps1 -BucketName my-unique-tfstate-bucket
+#   .\scripts\bootstrap-backend.ps1
 #
-# Bucket names are globally unique across all of AWS, so pick something unique
-# (e.g. "<you>-<project>-tfstate"). If you omit -BucketName, one is generated.
+# The bucket name, region, and key are read from infra/backend.hcl (which
+# init-from-template sets to "<project-name>-tfstate"). Pass -BucketName to
+# override (e.g. if the convention name is already taken globally).
 
 [CmdletBinding()]
 param(
     [string]$BucketName,
-    [string]$Region = "us-east-1",
-    [string]$StateKey = "nextjs-test/terraform.tfstate"
+    [string]$Region,
+    [string]$StateKey
 )
 
 $ErrorActionPreference = "Stop"
+$infraDir    = (Resolve-Path (Join-Path $PSScriptRoot "..\infra")).Path
+$backendPath = Join-Path $infraDir "backend.hcl"
 
-if (-not $BucketName) {
-    $suffix = -join ((1..6) | ForEach-Object { "abcdefghijklmnopqrstuvwxyz0123456789"[(Get-Random -Maximum 36)] })
-    $BucketName = "nextjs-test-tfstate-$suffix"
+function Get-HclValue([string]$key) {
+    if (Test-Path $backendPath) {
+        $m = Select-String -Path $backendPath -Pattern "^\s*$key\s*=\s*`"([^`"]+)`""
+        if ($m) { return $m.Matches[0].Groups[1].Value }
+    }
+    return $null
 }
 
-Write-Host "==> Creating state bucket '$BucketName' in $Region"
-# us-east-1 must NOT pass a LocationConstraint; every other region must.
-if ($Region -eq "us-east-1") {
-    aws s3api create-bucket --bucket $BucketName --region $Region | Out-Null
+# Defaults come from backend.hcl; parameters override.
+if (-not $BucketName) { $BucketName = Get-HclValue "bucket" }
+if (-not $Region)     { $Region     = Get-HclValue "region" }
+if (-not $StateKey)   { $StateKey   = Get-HclValue "key" }
+if (-not $Region)     { $Region     = "us-east-1" }
+if (-not $StateKey)   { $StateKey   = "terraform.tfstate" }
+
+if (-not $BucketName -or $BucketName -eq "REPLACE_WITH_YOUR_STATE_BUCKET") {
+    throw "No bucket name in backend.hcl. Run init-from-template first, or pass -BucketName."
+}
+
+aws s3api head-bucket --bucket $BucketName 2>$null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "==> Bucket '$BucketName' already exists; skipping create"
 } else {
-    aws s3api create-bucket --bucket $BucketName --region $Region `
-        --create-bucket-configuration "LocationConstraint=$Region" | Out-Null
+    Write-Host "==> Creating state bucket '$BucketName' in $Region"
+    if ($Region -eq "us-east-1") {
+        aws s3api create-bucket --bucket $BucketName --region $Region | Out-Null
+    } else {
+        aws s3api create-bucket --bucket $BucketName --region $Region `
+            --create-bucket-configuration "LocationConstraint=$Region" | Out-Null
+    }
 }
 
 Write-Host "==> Enabling versioning (state history / recovery)"
@@ -36,9 +57,6 @@ aws s3api put-bucket-versioning --bucket $BucketName `
 Write-Host "==> Blocking public access"
 aws s3api put-public-access-block --bucket $BucketName `
     --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true" | Out-Null
-
-$infraDir = (Resolve-Path (Join-Path $PSScriptRoot "..\infra")).Path
-$backendPath = Join-Path $infraDir "backend.hcl"
 
 Write-Host "==> Writing $backendPath"
 @"
@@ -53,4 +71,4 @@ use_lockfile = true
 Write-Host ""
 Write-Host "Done. Next:"
 Write-Host "  cd infra"
-Write-Host "  terraform init -backend-config=backend.hcl -migrate-state"
+Write-Host "  terraform init -backend-config=backend.hcl"

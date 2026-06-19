@@ -21,6 +21,10 @@ locals {
   github_oidc_arn = var.create_oidc_provider ? (
     aws_iam_openid_connect_provider.github[0].arn
   ) : data.aws_iam_openid_connect_provider.github[0].arn
+
+  # State bucket follows "<project_name>-tfstate" (matching backend.hcl) unless
+  # var.state_bucket overrides it. Derived so it can't drift from the real bucket.
+  state_bucket = var.state_bucket != "" ? var.state_bucket : "${var.project_name}-tfstate"
 }
 
 # Trust policy: only tokens from var.github_repo can assume this role.
@@ -101,7 +105,7 @@ data "aws_iam_policy_document" "gha_deploy" {
   statement {
     sid       = "TerraformState"
     actions   = ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = ["arn:aws:s3:::${var.state_bucket}", "arn:aws:s3:::${var.state_bucket}/*"]
+    resources = ["arn:aws:s3:::${local.state_bucket}", "arn:aws:s3:::${local.state_bucket}/*"]
   }
 }
 
