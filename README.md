@@ -17,6 +17,39 @@ Browser ──HTTPS──> ECS Express (ALB + Fargate task, image from ECR)
                    RDS PostgreSQL  ◄── Secrets Manager (connection string)
 ```
 
+## Quick start
+
+Prerequisites: Node.js 20+, Docker, AWS CLI (authenticated), GitHub CLI
+(`gh auth login`), Terraform ≥ 1.10, and PowerShell 7 (`pwsh`) for the npm
+aliases. On Linux/macOS without `pwsh`, run the matching `scripts/*.sh` directly.
+
+**New project from this template — run in this order:**
+
+```bash
+# 1. GitHub → "Use this template" → create the repo, then clone it and cd in.
+
+# 2. Start a local Postgres (skip if you already have one running):
+docker run --name pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
+
+# 3. Onboard: npm install, write .env, create the local DB, migrate,
+#    personalize the project (name/repo from the folder), and set your IP.
+npm run setup            # prompts for the local Postgres password
+
+# 4. Run locally:
+npm run dev              # http://localhost:3000  -> /budget
+
+# 5. Deploy to AWS (provisions everything; prints the live https URL):
+npm run aws:setup
+
+# 6. Enable CI auto-deploy — after this, every push to main ships:
+git add . && git commit -m "init" && git push -u origin main
+```
+
+> If this is a fresh AWS account with **no** existing GitHub OIDC provider, set
+> `create_oidc_provider = true` in `infra/terraform.tfvars` before step 5.
+
+The sections below explain each piece in detail.
+
 ## What's here
 
 | Path | Purpose |
@@ -49,6 +82,9 @@ versions via `pwsh` (so they work on any OS that has PowerShell 7 installed).
 Pass arguments after `--`, e.g. `npm run template:init -- -ProjectName my-app -GitHubRepo me/my-app`.
 On Linux/macOS without PowerShell 7, call the `.sh` versions directly.
 
+Local-only npm helpers (no shell script): `npm run dev`, `npm run migrate` (apply
+migrations), and `npm run db:ensure` (create the local database if it's missing).
+
 ## Prerequisites
 
 - Node.js 20+, Docker, AWS CLI (authenticated), GitHub CLI (`gh auth login`)
@@ -59,11 +95,15 @@ On Linux/macOS without PowerShell 7, call the `.sh` versions directly.
 
 ## Local development
 
+`npm run setup` (see Quick start) already does all of this. To do it by hand —
+or for day-to-day work after onboarding:
+
 ```bash
 npm install
-docker run --name budget-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
-cp .env.example .env        # points at the local container; DATABASE_SSL=disable
-npm run migrate
+docker run --name pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
+cp .env.example .env        # set the DATABASE_URL password + db name; DATABASE_SSL=disable
+npm run db:ensure           # create the database if it doesn't exist
+npm run migrate             # apply migrations
 npm run dev                 # http://localhost:3000  → /budget
 ```
 
@@ -167,21 +207,17 @@ terraform apply
 This repo is structured to be a GitHub **template repo** (Settings → "Template repository").
 For a new project:
 
-1. "Use this template" → new repo, then clone it.
-2. Personalize it in one command (replaces the name/region, generates `terraform.tfvars`):
-
-   ```powershell
-   .\scripts\init-from-template.ps1 -ProjectName my-app -GitHubRepo owner/my-app -Region us-east-1
-   ```
-   ```bash
-   ./scripts/init-from-template.sh --name my-app --repo owner/my-app --region us-east-1
-   ```
-   Add `-CreateOidcProvider` / `--create-oidc` only if the account has no GitHub OIDC provider yet.
-3. Review `git diff`, fill in `infra/terraform.tfvars` (`my_ip_cidr`), then run
-   `npm run aws:setup` (the **First-time AWS setup** above).
+1. "Use this template" → new repo, then clone it and `cd` in.
+2. Run `npm run setup`. It personalizes the project (name + repo derived from the
+   folder, region `us-east-1`), sets up local dev, and fills in `infra/terraform.tfvars`
+   including your public IP.
+   - To *only* personalize (no local DB / migrate), run instead:
+     `npm run template:init -- -ProjectName my-app -GitHubRepo owner/my-app`
+     (add `-CreateOidcProvider` if the account has no GitHub OIDC provider yet).
+3. Review `git diff`, then `npm run aws:setup` to deploy (see **First-time AWS setup**).
 
 Terraform provisions all the AWS resources, so there's no big generator script to
-maintain — "use template + `terraform apply`" replaces it.
+maintain — "use template + `npm run aws:setup`" replaces it.
 
 ---
 
