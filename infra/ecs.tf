@@ -24,6 +24,12 @@ resource "aws_ecs_express_gateway_service" "app" {
   memory            = var.app_memory
   health_check_path = "/api/health"
 
+  # Block `terraform apply` until the canary deployment has fully stabilized.
+  # Without this, apply returns mid-rollout; a second deploy (e.g. the CI push
+  # right after aws:setup) then overlaps the canary and ECS Express rolls back
+  # with "found 2 target groups serving traffic". Waiting serializes deploys.
+  wait_for_steady_state = true
+
   primary_container {
     image          = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
     container_port = var.container_port
