@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
-// Never cache; App Runner hits this for health checks.
+// Never cache; the load balancer hits this for health checks.
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 

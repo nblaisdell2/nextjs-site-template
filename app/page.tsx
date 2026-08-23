@@ -5,19 +5,19 @@ export default function Home() {
     <main className="container">
       <div className="brand">
         <span className="dot" />
-        Budget App
+        Site Template
       </div>
 
-      <h1>Give every dollar a job.</h1>
+      <h1>Ship a full-stack Next.js site on AWS.</h1>
       <p className="muted" style={{ maxWidth: 560 }}>
-        A YNAB-style budgeting app scaffold. Full server-side Next.js, running
-        in a container on AWS App Runner, talking to PostgreSQL on RDS, with
-        credentials held in Secrets Manager.
+        A generic starting point for any project: full server-side Next.js,
+        running in a container on Amazon ECS (Express Mode), talking to
+        PostgreSQL on RDS, with credentials held in Secrets Manager.
       </p>
 
       <p style={{ marginTop: "1.5rem" }}>
-        <Link className="btn" href="/budget">
-          Open the budget &rarr;
+        <Link className="btn" href="/demo">
+          Open the database demo &rarr;
         </Link>
       </p>
 
@@ -34,14 +34,15 @@ export default function Home() {
           <span className="pill">Database</span>
           <h3 style={{ margin: "0.6rem 0 0.3rem" }}>PostgreSQL on RDS</h3>
           <p className="muted" style={{ margin: 0 }}>
-            Accessed over a private VPC connector via the node-postgres pool.
+            Accessed via the node-postgres pool with the connection string
+            injected from Secrets Manager.
           </p>
         </div>
         <div className="card">
           <span className="pill">Hosting</span>
-          <h3 style={{ margin: "0.6rem 0 0.3rem" }}>AWS App Runner</h3>
+          <h3 style={{ margin: "0.6rem 0 0.3rem" }}>Amazon ECS Express Mode</h3>
           <p className="muted" style={{ margin: 0 }}>
-            Pulls the image from ECR, autoscales, and health-checks{" "}
+            Pulls the image from ECR, fronts it with an ALB, and health-checks{" "}
             <code>/api/health</code>.
           </p>
         </div>

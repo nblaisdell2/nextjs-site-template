@@ -1,10 +1,13 @@
-# Budget App
+# Next.js + AWS Site Template
 
-A YNAB-style budgeting app scaffold. Server-rendered **Next.js** (App Router) in
-a Docker container on **Amazon ECS Express Mode** (Fargate), talking to
-**PostgreSQL on RDS**, with the DB connection string held in **AWS Secrets
-Manager**. State is stored remotely in **S3**, and pushes to `main` auto-deploy
-via **GitHub Actions** (OIDC, no stored keys).
+A production-ready starting point for any server-rendered **Next.js** (App
+Router) site. The app runs in a Docker container on **Amazon ECS Express Mode**
+(Fargate), talks to **PostgreSQL on RDS**, and reads its DB connection string
+from **AWS Secrets Manager**. Terraform state is stored remotely in **S3**, and
+pushes to `main` auto-deploy via **GitHub Actions** (OIDC, no stored keys).
+
+The included pages are a minimal demo that proves the database wiring end to
+end — replace them with your own app.
 
 ```
 push to main ─> GitHub Actions ─(OIDC)─> build + push image to ECR
@@ -20,8 +23,9 @@ Browser ──HTTPS──> ECS Express (ALB + Fargate task, image from ECR)
 ## Quick start
 
 Prerequisites: Node.js 20+, Docker, AWS CLI (authenticated), GitHub CLI
-(`gh auth login`), Terraform ≥ 1.10, and PowerShell 7 (`pwsh`) for the npm
-aliases. On Linux/macOS without `pwsh`, run the matching `scripts/*.sh` directly.
+(`gh auth login`), Terraform ≥ 1.10 (needed for S3-native state locking and the
+ECS Express resource), and PowerShell 7 (`pwsh`) for the npm aliases. On
+Linux/macOS without `pwsh`, run the matching `scripts/*.sh` directly.
 
 **New project from this template — run in this order:**
 
@@ -33,10 +37,10 @@ docker run --name pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
 
 # 3. Onboard: npm install, write .env, create the local DB, migrate,
 #    personalize the project (name/repo from the folder), and set your IP.
-npm run setup            # prompts for the local Postgres password
+npm run setup            # prompts for the local Postgres password + AWS region
 
 # 4. Run locally:
-npm run dev              # http://localhost:3000  -> /budget
+npm run dev              # http://localhost:3000
 
 # 5. Deploy to AWS (provisions everything; prints the live https URL):
 npm run aws:setup
@@ -54,7 +58,7 @@ The sections below explain each piece in detail.
 
 | Path | Purpose |
 |------|---------|
-| `app/` | Next.js routes: landing, `budget/`, `api/health`, `api/transactions` |
+| `app/` | Next.js App Router: landing page, `api/health`, plus a demo page + API that exercise the database (replace with your own routes) |
 | `lib/db.ts` | `pg` pool; full TLS verification using the bundled RDS CA |
 | `db/migrations/` + `db/migrate.mjs` | SQL migrations and a forward-only runner |
 | `Dockerfile` | Multi-stage standalone build; bundles the RDS CA cert |
@@ -85,14 +89,6 @@ On Linux/macOS without PowerShell 7, call the `.sh` versions directly.
 Local-only npm helpers (no shell script): `npm run dev`, `npm run migrate` (apply
 migrations), and `npm run db:ensure` (create the local database if it's missing).
 
-## Prerequisites
-
-- Node.js 20+, Docker, AWS CLI (authenticated), GitHub CLI (`gh auth login`)
-- Terraform ≥ 1.10 (needed for S3-native state locking and the ECS Express resource)
-- PowerShell 7 (`pwsh`) if you want to use the npm script aliases (optional)
-
----
-
 ## Local development
 
 `npm run setup` (see Quick start) already does all of this. To do it by hand —
@@ -104,7 +100,7 @@ docker run --name pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
 cp .env.example .env        # set the DATABASE_URL password + db name; DATABASE_SSL=disable
 npm run db:ensure           # create the database if it doesn't exist
 npm run migrate             # apply migrations
-npm run dev                 # http://localhost:3000  → /budget
+npm run dev                 # http://localhost:3000
 ```
 
 Locally there's no RDS CA bundle, so `lib/db.ts` connects without TLS (`DATABASE_SSL=disable`). In the container the CA is present and TLS is fully verified.
@@ -169,8 +165,9 @@ cd ..
 > `terraform init "-backend-config=backend.hcl"`. Unquoted, PowerShell mis-splits it and
 > Terraform fails with *"Too many command line arguments."*
 
-> **Already have the App Runner-era OIDC provider?** Set `create_oidc_provider = false`
-> and Terraform references the existing one instead of failing on a duplicate.
+> **Does the AWS account already have a GitHub OIDC provider?** Set
+> `create_oidc_provider = false` and Terraform references the existing one
+> instead of failing on a duplicate.
 
 ---
 
@@ -223,6 +220,10 @@ For a new project:
      `npm run template:init -- -ProjectName my-app -GitHubRepo owner/my-app`
      (add `-CreateOidcProvider` if the account has no GitHub OIDC provider yet).
 3. Review `git diff`, then `npm run aws:setup` to deploy (see **First-time AWS setup**).
+4. Build your app: replace the demo routes in `app/` (and their tables in
+   `db/migrations/`) with your own pages, APIs, and migrations. `lib/db.ts`,
+   the health check (`api/health`), and everything under `infra/` are app-agnostic
+   and stay as they are.
 
 Terraform provisions all the AWS resources, so there's no big generator script to
 maintain — "use template + `npm run aws:setup`" replaces it.

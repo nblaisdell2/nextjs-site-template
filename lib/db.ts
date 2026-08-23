@@ -12,7 +12,7 @@ import { Pool, type QueryResultRow } from "pg";
  * Node global to survive reloads.
  *
  * Connection config comes entirely from DATABASE_URL, which in production is
- * injected by App Runner from Secrets Manager (see infra/secrets.tf).
+ * injected by ECS from Secrets Manager (see infra/secrets.tf).
  */
 
 declare global {

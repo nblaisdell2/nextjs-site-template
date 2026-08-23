@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Budget App",
-  description: "A YNAB-style budgeting app — Next.js on AWS App Runner",
+  title: "Next.js Site Template",
+  description:
+    "Server-rendered Next.js on Amazon ECS with PostgreSQL on RDS",
 };
 
 export default function RootLayout({
