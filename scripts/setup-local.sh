@@ -2,7 +2,7 @@
 # One-shot local onboarding for a freshly cloned project (Bash).
 #   ./scripts/setup-local.sh [--password=...] [--region=us-east-1] [--db-name=test]
 #
-# 1) prompt for the local Postgres password
+# 1) prompt for the local Postgres password + AWS region (default us-east-1)
 # 2) npm install
 # 3) write .env (DATABASE_URL -> local database, default name "test")
 # 4) npm run migrate (against that local DB)
@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REGION="us-east-1"
+REGION=""
 DB_NAME="test"
 DB_PASSWORD=""
 for arg in "$@"; do
@@ -38,11 +38,17 @@ urlencode() { # URL-safe encode of $1
   printf '%s' "$out"
 }
 
-echo "==> [1/6] Local Postgres password"
+echo "==> [1/6] Local Postgres password + AWS region"
 if [ -z "$DB_PASSWORD" ]; then
   read -r -s -p "Local Postgres password: " DB_PASSWORD; echo
 fi
 [ -n "$DB_PASSWORD" ] || { echo "Database password is required." >&2; exit 1; }
+if [ -z "$REGION" ]; then
+  if [ -t 0 ]; then
+    read -r -p "AWS region [us-east-1]: " REGION
+  fi
+  REGION="${REGION:-us-east-1}"
+fi
 
 echo "==> [2/6] npm install"
 (cd "$ROOT" && npm install)

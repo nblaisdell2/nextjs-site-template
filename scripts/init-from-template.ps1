@@ -37,15 +37,17 @@ function Replace-In([string]$rel, [string]$from, [string]$to) {
 $projectFiles = @(
     "infra/ci.tfvars", "infra/backend.hcl", "infra/terraform.tfvars.example",
     ".github/workflows/deploy.yml", "README.md",
-    "scripts/bootstrap-backend.ps1", "scripts/bootstrap-backend.sh",
     "scripts/destroy-all.ps1", "scripts/destroy-all.sh"
 )
 foreach ($f in $projectFiles) { Replace-In $f $OLD $ProjectName }
 
-# 2. Replace the default region in config/workflow/scripts only.
+# 2. Replace the default region in config/workflow files only. Never rewrite
+# the bootstrap-backend scripts: their literal "us-east-1" comparison
+# implements the S3 LocationConstraint rule (omit in us-east-1, required
+# elsewhere) and they read the actual region from infra/backend.hcl.
 $regionFiles = @(
-    "infra/ci.tfvars", "infra/backend.hcl", ".github/workflows/deploy.yml",
-    "scripts/bootstrap-backend.ps1", "scripts/bootstrap-backend.sh"
+    "infra/ci.tfvars", "infra/backend.hcl", "infra/terraform.tfvars.example",
+    "infra/variables.tf", ".github/workflows/deploy.yml"
 )
 foreach ($f in $regionFiles) { Replace-In $f "us-east-1" $Region }
 

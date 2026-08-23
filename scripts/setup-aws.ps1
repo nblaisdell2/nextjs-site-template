@@ -33,6 +33,19 @@ function Invoke-Step([string]$label, [scriptblock]$action) {
     & $action
 }
 
+$region = "us-east-1"
+$m = Select-String -Path $tfvars -Pattern '^\s*aws_region\s*=\s*"([^"]+)"'
+if ($m) { $region = $m.Matches[0].Groups[1].Value }
+
+Invoke-Step "[0/7] Preflight: default VPC in $region" {
+    $vpcId = aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --region $region `
+        --query "Vpcs[0].VpcId" --output text
+    if ($LASTEXITCODE -ne 0) { throw "aws ec2 describe-vpcs failed" }
+    if (-not $vpcId -or $vpcId -eq "None") {
+        throw "Region $region has no default VPC (required by infra/network.tf). Create one with: aws ec2 create-default-vpc --region $region"
+    }
+}
+
 Invoke-Step "[1/7] Create remote-state bucket" {
     & (Join-Path $scriptsDir "bootstrap-backend.ps1")
 }

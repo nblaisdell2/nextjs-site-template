@@ -32,7 +32,7 @@ if [ -z "$BUCKET" ] || [ "$BUCKET" = "REPLACE_WITH_YOUR_STATE_BUCKET" ]; then
   exit 1
 fi
 
-if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+if aws s3api head-bucket --bucket "$BUCKET" --region "$REGION" 2>/dev/null; then
   echo "==> Bucket '$BUCKET' already exists; skipping create"
 else
   echo "==> Creating state bucket '$BUCKET' in $REGION"
@@ -45,11 +45,11 @@ else
 fi
 
 echo "==> Enabling versioning (state history / recovery)"
-aws s3api put-bucket-versioning --bucket "$BUCKET" \
+aws s3api put-bucket-versioning --bucket "$BUCKET" --region "$REGION" \
   --versioning-configuration Status=Enabled >/dev/null
 
 echo "==> Blocking public access"
-aws s3api put-public-access-block --bucket "$BUCKET" \
+aws s3api put-public-access-block --bucket "$BUCKET" --region "$REGION" \
   --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true >/dev/null
 
 echo "==> Writing $BACKEND"

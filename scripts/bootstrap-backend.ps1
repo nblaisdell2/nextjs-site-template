@@ -37,7 +37,7 @@ if (-not $BucketName -or $BucketName -eq "REPLACE_WITH_YOUR_STATE_BUCKET") {
     throw "No bucket name in backend.hcl. Run init-from-template first, or pass -BucketName."
 }
 
-aws s3api head-bucket --bucket $BucketName 2>$null
+aws s3api head-bucket --bucket $BucketName --region $Region 2>$null
 if ($LASTEXITCODE -eq 0) {
     Write-Host "==> Bucket '$BucketName' already exists; skipping create"
 } else {
@@ -51,11 +51,11 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 Write-Host "==> Enabling versioning (state history / recovery)"
-aws s3api put-bucket-versioning --bucket $BucketName `
+aws s3api put-bucket-versioning --bucket $BucketName --region $Region `
     --versioning-configuration "Status=Enabled" | Out-Null
 
 Write-Host "==> Blocking public access"
-aws s3api put-public-access-block --bucket $BucketName `
+aws s3api put-public-access-block --bucket $BucketName --region $Region `
     --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true" | Out-Null
 
 Write-Host "==> Writing $backendPath"

@@ -1,7 +1,7 @@
 # One-shot local onboarding for a freshly cloned project (PowerShell).
 #   npm run setup        (or: .\scripts\setup-local.ps1)
 #
-# 1) prompt for the local Postgres password
+# 1) prompt for the local Postgres password + AWS region (default us-east-1)
 # 2) npm install
 # 3) write .env (DATABASE_URL -> local database, default name "test")
 # 4) npm run migrate (against that local DB)
@@ -13,7 +13,7 @@
 [CmdletBinding()]
 param(
     [string]$DbPassword,
-    [string]$Region = "us-east-1",
+    [string]$Region,
     [string]$DbName = "test"
 )
 
@@ -22,13 +22,17 @@ $scriptsDir = $PSScriptRoot
 $root  = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $infra = Join-Path $root "infra"
 
-# --- 1. password ---
-Write-Host "==> [1/6] Local Postgres password" -ForegroundColor Cyan
+# --- 1. password + region ---
+Write-Host "==> [1/6] Local Postgres password + AWS region" -ForegroundColor Cyan
 if (-not $DbPassword) {
     $secure = Read-Host "Local Postgres password" -AsSecureString
     $DbPassword = [System.Net.NetworkCredential]::new("", $secure).Password
 }
 if ([string]::IsNullOrWhiteSpace($DbPassword)) { throw "Database password is required." }
+if (-not $Region) {
+    $Region = Read-Host "AWS region [us-east-1]"
+    if ([string]::IsNullOrWhiteSpace($Region)) { $Region = "us-east-1" }
+}
 
 # --- 2. npm install ---
 Write-Host "`n==> [2/6] npm install" -ForegroundColor Cyan

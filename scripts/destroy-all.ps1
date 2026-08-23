@@ -55,26 +55,31 @@ if ($DeleteSnapshots) {
 
 if ($DeleteStateBucket) {
     $bucket = $null
+    # The state bucket lives in the backend.hcl region, which can differ from
+    # the aws_region in terraform.tfvars.
+    $bucketRegion = $region
     $bh = Join-Path $infraDir "backend.hcl"
     if (Test-Path $bh) {
         $m = Select-String -Path $bh -Pattern '^\s*bucket\s*=\s*"([^"]+)"'
         if ($m) { $bucket = $m.Matches[0].Groups[1].Value }
+        $m = Select-String -Path $bh -Pattern '^\s*region\s*=\s*"([^"]+)"'
+        if ($m) { $bucketRegion = $m.Matches[0].Groups[1].Value }
     }
     if ($bucket -and $bucket -ne "REPLACE_WITH_YOUR_STATE_BUCKET") {
         Write-Host "==> Emptying + deleting state bucket '$bucket' (incl. all versions)"
         # Versioned bucket: must delete every version and delete-marker first.
         foreach ($sel in @("Versions[].{Key:Key,VersionId:VersionId}",
                            "DeleteMarkers[].{Key:Key,VersionId:VersionId}")) {
-            $json = aws s3api list-object-versions --bucket $bucket --region $region `
+            $json = aws s3api list-object-versions --bucket $bucket --region $bucketRegion `
                 --query "{Objects: $sel}" --output json
             if ($json -and $json -notmatch '"Objects":\s*null') {
                 $tmp = New-TemporaryFile
                 $json | Set-Content -Path $tmp -Encoding UTF8
-                aws s3api delete-objects --bucket $bucket --region $region --delete "file://$tmp" | Out-Null
+                aws s3api delete-objects --bucket $bucket --region $bucketRegion --delete "file://$tmp" | Out-Null
                 Remove-Item $tmp
             }
         }
-        aws s3api delete-bucket --bucket $bucket --region $region | Out-Null
+        aws s3api delete-bucket --bucket $bucket --region $bucketRegion | Out-Null
     } else {
         Write-Host "No real state bucket found in backend.hcl; skipping."
     }

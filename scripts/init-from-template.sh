@@ -44,15 +44,17 @@ replace_in() { # from to file
 for f in \
   infra/ci.tfvars infra/backend.hcl infra/terraform.tfvars.example \
   .github/workflows/deploy.yml README.md \
-  scripts/bootstrap-backend.ps1 scripts/bootstrap-backend.sh \
   scripts/destroy-all.ps1 scripts/destroy-all.sh ; do
   replace_in "$OLD" "$PROJECT_NAME" "$f"
 done
 
-# 2. Default region in config/workflow/scripts only.
+# 2. Default region in config/workflow files only. Never rewrite the
+# bootstrap-backend scripts: their literal "us-east-1" comparison implements
+# the S3 LocationConstraint rule (omit in us-east-1, required elsewhere) and
+# they read the actual region from infra/backend.hcl.
 for f in \
-  infra/ci.tfvars infra/backend.hcl .github/workflows/deploy.yml \
-  scripts/bootstrap-backend.ps1 scripts/bootstrap-backend.sh ; do
+  infra/ci.tfvars infra/backend.hcl infra/terraform.tfvars.example \
+  infra/variables.tf .github/workflows/deploy.yml ; do
   replace_in "us-east-1" "$REGION" "$f"
 done
 

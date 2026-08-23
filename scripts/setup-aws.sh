@@ -29,6 +29,18 @@ TFVARS="$INFRA_DIR/terraform.tfvars"
 
 step() { echo ""; echo "==> $1"; }
 
+REGION="$(grep -E '^\s*aws_region\s*=' "$TFVARS" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+REGION="${REGION:-us-east-1}"
+
+step "[0/7] Preflight: default VPC in $REGION"
+VPC_ID="$(aws ec2 describe-vpcs --filters Name=is-default,Values=true --region "$REGION" \
+  --query 'Vpcs[0].VpcId' --output text)"
+if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
+  echo "Region $REGION has no default VPC (required by infra/network.tf)." >&2
+  echo "Create one with: aws ec2 create-default-vpc --region $REGION" >&2
+  exit 1
+fi
+
 step "[1/7] Create remote-state bucket"
 bash "$SCRIPTS_DIR/bootstrap-backend.sh"
 

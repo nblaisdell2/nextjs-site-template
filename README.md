@@ -76,7 +76,7 @@ versions via `pwsh` (so they work on any OS that has PowerShell 7 installed).
 | `bootstrap-backend` | `npm run aws:bootstrap` | Create the S3 state bucket |
 | `build-and-push` | `npm run aws:deploy` | Build the image and push to ECR |
 | `run-migrations` | `npm run aws:migrate` | Apply DB migrations against RDS |
-| `set-deploy-secrets` | `npm run aws:secrets` | Push the CI role ARN + region to GitHub secrets |
+| `set-deploy-secrets` | `npm run aws:secrets` | Push the CI role ARN (secret) + region (repo variable) to GitHub |
 | `destroy-all` | `npm run aws:destroy` | Tear down everything (`--delete-snapshots`, `--delete-state-bucket`, `--yes`) |
 
 Pass arguments after `--`, e.g. `npm run template:init -- -ProjectName my-app -GitHubRepo me/my-app`.
@@ -119,8 +119,14 @@ creates it; otherwise `cp infra/terraform.tfvars.example infra/terraform.tfvars`
 - `my_ip_cidr` — your IP for migrations (`curl https://checkip.amazonaws.com` → `"<ip>/32"`)
 - `github_repo` — `"<owner>/<repo>"`
 - `create_oidc_provider` — `true`, or `false` if the account already has a GitHub OIDC provider
+- `aws_region` — chosen when you run `npm run setup` / `template:init` (default
+  `us-east-1`). Init bakes it into `infra/backend.hcl`, `infra/ci.tfvars`, and the
+  workflow's fallback too, so changing the region *after* setup means re-running
+  `template:init` on a clean tree (or updating those files by hand) and
+  re-bootstrapping the state bucket.
 
 The state bucket name is derived as `<project_name>-tfstate` automatically — you don't set it.
+The target region must have a default VPC (`aws:setup` checks and tells you how to create one).
 
 Then run the **entire** setup in one command (bucket → init → apply → build → migrate →
 launch → secrets, all with `-auto-approve`):
@@ -210,8 +216,9 @@ For a new project:
 
 1. "Use this template" → new repo, then clone it and `cd` in.
 2. Run `npm run setup`. It personalizes the project (name + repo derived from the
-   folder, region `us-east-1`), sets up local dev, and fills in `infra/terraform.tfvars`
-   including your public IP.
+   folder), prompts for the AWS region (default `us-east-1`), sets up local dev, and
+   fills in `infra/terraform.tfvars` including your public IP. Pass the region
+   non-interactively with `-Region eu-west-1` (`--region=eu-west-1` for the `.sh`).
    - To *only* personalize (no local DB / migrate), run instead:
      `npm run template:init -- -ProjectName my-app -GitHubRepo owner/my-app`
      (add `-CreateOidcProvider` if the account has no GitHub OIDC provider yet).

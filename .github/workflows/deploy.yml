@@ -20,7 +20,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: us-east-1
+      # Repo variable (set by set-deploy-secrets from `terraform output
+      # aws_region`) wins; the literal is the pre-variable fallback and is
+      # rewritten by init-from-template.
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       ECR_REPO: nextjs-test # = project_name
     steps:
       - uses: actions/checkout@v4
@@ -63,4 +66,5 @@ jobs:
           terraform apply -auto-approve -refresh=false \
             -target=aws_ecs_express_gateway_service.app \
             -var-file=ci.tfvars \
+            -var="aws_region=${{ env.AWS_REGION }}" \
             -var="image_tag=${{ github.sha }}"

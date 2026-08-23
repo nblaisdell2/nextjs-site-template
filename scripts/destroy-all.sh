@@ -57,17 +57,21 @@ fi
 
 if [ "$DELETE_STATE_BUCKET" = true ]; then
   BUCKET="$(grep -E '^\s*bucket\s*=' "$INFRA_DIR/backend.hcl" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+  # The state bucket lives in the backend.hcl region, which can differ from
+  # the aws_region in terraform.tfvars.
+  BUCKET_REGION="$(grep -E '^\s*region\s*=' "$INFRA_DIR/backend.hcl" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+  BUCKET_REGION="${BUCKET_REGION:-$REGION}"
   if [ -n "${BUCKET:-}" ] && [ "$BUCKET" != "REPLACE_WITH_YOUR_STATE_BUCKET" ]; then
     echo "==> Emptying + deleting state bucket '$BUCKET' (incl. all versions)"
     for sel in "Versions[].{Key:Key,VersionId:VersionId}" "DeleteMarkers[].{Key:Key,VersionId:VersionId}"; do
-      json="$(aws s3api list-object-versions --bucket "$BUCKET" --region "$REGION" --query "{Objects: $sel}" --output json)"
+      json="$(aws s3api list-object-versions --bucket "$BUCKET" --region "$BUCKET_REGION" --query "{Objects: $sel}" --output json)"
       if ! echo "$json" | grep -q '"Objects": null'; then
         echo "$json" > /tmp/del-objs.json
-        aws s3api delete-objects --bucket "$BUCKET" --region "$REGION" --delete file:///tmp/del-objs.json >/dev/null
+        aws s3api delete-objects --bucket "$BUCKET" --region "$BUCKET_REGION" --delete file:///tmp/del-objs.json >/dev/null
         rm -f /tmp/del-objs.json
       fi
     done
-    aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION" >/dev/null
+    aws s3api delete-bucket --bucket "$BUCKET" --region "$BUCKET_REGION" >/dev/null
   else
     echo "No real state bucket found in backend.hcl; skipping."
   fi
